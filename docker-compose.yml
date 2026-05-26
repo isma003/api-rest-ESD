@@ -1,0 +1,75 @@
+# Docker Compose — Clínica API (Rust + PostgreSQL)
+# Usar: docker compose up --build
+
+services:
+  # ──────────────────────────────────────────
+  # Base de datos PostgreSQL
+  # ──────────────────────────────────────────
+  db:
+    image: postgres:17-alpine
+    container_name: clinica_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-clinica_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clinica_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-clinica_db}
+    ports:
+      - "5534:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      # Script de inicialización: crea las tablas al primer arranque
+      - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clinica_user} -d ${POSTGRES_DB:-clinica_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - clinica_net
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: clinica_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    networks:
+      - clinica_net
+
+  # ──────────────────────────────────────────
+  # API REST en Rust (Axum)
+  # ──────────────────────────────────────────
+  api:
+    container_name: clinica_api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-clinica_user}:${POSTGRES_PASSWORD:-clinica_pass}@db:5432/${POSTGRES_DB:-clinica_db}
+      RUST_LOG: ${RUST_LOG:-info}
+      HOST: 0.0.0.0
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - clinica_net
+
+# ──────────────────────────────────────────
+# Volúmenes y Redes
+# ──────────────────────────────────────────
+volumes:
+  pg_data:
+    driver: local
+
+networks:
+  clinica_net:
+    driver: bridge
