@@ -32,7 +32,13 @@ async fn main() -> anyhow::Result<()> {
     let paciente_repo = repositories::paciente_repo::PacienteRepo::new(pool.clone());
     let paciente_service = services::paciente_service::PacienteService::new(paciente_repo);
 
-    let app = routes::create_router(especialidad_service, cita_service, paciente_service);
+    let diagnostico_repo = repositories::diagnostico_repo::DiagnosticoRepository::new(pool.clone());
+    let diagnostico_service = services::diagnostico_service::DiagnosticoService::new(diagnostico_repo);
+
+    let medico_repo = repositories::medico_repo::MedicoRepository::new(pool.clone());
+    let medico_service = services::medico_service::MedicoService::new(medico_repo);
+
+    let app = routes::create_router(especialidad_service, cita_service, paciente_service, diagnostico_service, medico_service);
 
     let port = env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);
