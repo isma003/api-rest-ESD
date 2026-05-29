@@ -1,45 +1,51 @@
-use actix_web::{web, HttpResponse, Responder, Scope};
-use crate::models::medico::CreateMedicoDto;
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    Json,
+};
+use serde_json::json;
+use crate::error::AppError;
+use crate::models::medico::{CreateMedico, Medico, UpdateMedico};
 use crate::services::medico_service::MedicoService;
+use crate::utils::PrettyJson;
 
-pub fn medico_routes(service: web::Data<MedicoService>) -> Scope {
-    web::scope("/api/medicos")
-        .app_data(service)
-        .route("", web::get().to(listar_medicos))
-        .route("/{id}", web::get().to(obtener_medico))
-        .route("", web::post().to(crear_medico))
-        .route("/{id}", web::put().to(actualizar_medico))
-        .route("/{id}", web::delete().to(eliminar_medico))
+pub async fn obtener_todos(
+    State(service): State<MedicoService>,
+) -> Result<PrettyJson<Vec<Medico>>, AppError> {
+    let medicos = service.listar_medicos().await?;
+    Ok(PrettyJson(medicos))
 }
 
-async fn listar_medicos(service: web::Data<MedicoService>) -> impl Responder {
-    let lista = service.obtener_todos();
-    HttpResponse::Ok().json(lista)
+pub async fn obtener_por_id(
+    State(service): State<MedicoService>,
+    Path(id): Path<i32>,
+) -> Result<PrettyJson<Medico>, AppError> {
+    let medico = service.obtener_por_id(id).await?;
+    Ok(PrettyJson(medico))
 }
 
-async fn obtener_medico(id: web::Path<u32>, service: web::Data<MedicoService>) -> impl Responder {
-    match service.obtener_por_id(id.into_inner()) {
-        Some(medico) => HttpResponse::Ok().json(medico),
-        None => HttpResponse::NotFound().json("Médico no encontrado"),
-    }
+pub async fn crear_medico(
+    State(service): State<MedicoService>,
+    Json(payload): Json<CreateMedico>,
+) -> Result<(StatusCode, PrettyJson<Medico>), AppError> {
+    let nuevo = service.crear_medico(payload).await?;
+    Ok((StatusCode::CREATED, PrettyJson(nuevo)))
 }
 
-async fn crear_medico(dto: web::Json<CreateMedicoDto>, service: web::Data<MedicoService>) -> impl Responder {
-    let nuevo = service.registrar_medico(dto.into_inner());
-    HttpResponse::Created().json(nuevo)
+pub async fn actualizar_medico(
+    State(service): State<MedicoService>,
+    Path(id): Path<i32>,
+    Json(payload): Json<UpdateMedico>,
+) -> Result<PrettyJson<Medico>, AppError> {
+    let actualizado = service.actualizar_medico(id, payload).await?;
+    Ok(PrettyJson(actualizado))
 }
 
-async fn actualizar_medico(id: web::Path<u32>, dto: web::Json<CreateMedicoDto>, service: web::Data<MedicoService>) -> impl Responder {
-    match service.actualizar_medico(id.into_inner(), dto.into_inner()) {
-        Some(actualizado) => HttpResponse::Ok().json(actualizado),
-        None => HttpResponse::NotFound().json("No se pudo actualizar, médico no encontrado"),
-    }
-}
-
-async fn eliminar_medico(id: web::Path<u32>, service: web::Data<MedicoService>) -> impl Responder {
-    if service.eliminar_medico(id.into_inner()) {
-        HttpResponse::Ok().json("Médico eliminado correctamente")
-    } else {
-        HttpResponse::NotFound().json("Médico no encontrado")
-    }
+pub async fn eliminar_medico(
+    State(service): State<MedicoService>,
+    Path(id): Path<i32>,
+) -> Result<PrettyJson<serde_json::Value>, AppError> {
+    service.eliminar_medico(id).await?;
+    let mensaje = json!({ "message": "Médico eliminado correctamente" });
+    Ok(PrettyJson(mensaje))
 }

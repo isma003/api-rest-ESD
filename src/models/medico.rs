@@ -1,18 +1,27 @@
-use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
 pub struct Medico {
-    pub id: u32,
+    pub id_medico: i32,
     pub nombre: String,
-    pub especialidad: String,
-    pub junta_vigilancia: String, // Requisito común en El Salvador
-    pub disponible: bool,
+    pub id_especialidad: Option<i32>,
+    pub numero_licencia: Option<String>,
+    pub telefono: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct CreateMedicoDto {
+#[derive(Debug, Deserialize, Clone)]
+pub struct CreateMedico {
     pub nombre: String,
-    pub space_especialidad: String,
-    pub junta_vigilancia: String,
-    pub disponible: bool,
+    pub id_especialidad: Option<i32>,
+    pub numero_licencia: Option<String>,
+    pub telefono: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct UpdateMedico {
+    pub nombre: Option<String>,
+    pub id_especialidad: Option<i32>,
+    pub numero_licencia: Option<String>,
+    pub telefono: Option<String>,
 }

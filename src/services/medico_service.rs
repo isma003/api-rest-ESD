@@ -1,53 +1,48 @@
-use crate::models::medico::{Medico, CreateMedicoDto};
+use crate::error::AppError;
+use crate::models::medico::{CreateMedico, Medico, UpdateMedico};
 use crate::repositories::medico_repo::MedicoRepository;
 
+#[derive(Clone)]
 pub struct MedicoService {
     repo: MedicoRepository,
 }
 
 impl MedicoService {
     pub fn new(repo: MedicoRepository) -> Self {
-        MedicoService { repo }
+        Self { repo }
     }
 
-    pub fn obtener_todos(&self) -> Vec<Medico> {
-        self.repo.find_all()
+    pub async fn listar_medicos(&self) -> Result<Vec<Medico>, AppError> {
+        self.repo.find_all().await
     }
 
-    pub fn obtener_por_id(&self, id: u32) -> Option<Medico> {
-        self.repo.find_by_id(id)
+    pub async fn obtener_por_id(&self, id: i32) -> Result<Medico, AppError> {
+        self.repo.find_by_id(id).await
     }
 
-    pub fn registrar_medico(&self, dto: CreateMedicoDto) -> Medico {
-        let medicos = self.repo.find_all();
-        let nuevo_id = medicos.iter().map(|m| m.id).max().unwrap_or(0) + 1;
-
-        let nuevo_medico = Medico {
-            id: nuevo_id,
-            nombre: dto.nombre,
-            especialidad: dto.space_especialidad,
-            junta_vigilancia: dto.junta_vigilancia,
-            disponible: dto.disponible,
-        };
-
-        self.repo.create(nuevo_medico)
+    pub async fn crear_medico(&self, data: CreateMedico) -> Result<Medico, AppError> {
+        if data.nombre.trim().is_empty() {
+            return Err(AppError::BadRequest(
+                "El nombre del médico es obligatorio".into(),
+            ));
+        }
+        self.repo.create(data).await
     }
 
-    pub fn actualizar_medico(&self, id: u32, dto: CreateMedicoDto) -> Option<Medico> {
-        let medico_existente = self.repo.find_by_id(id)?;
-        
-        let medico_actualizado = Medico {
-            id: medico_existente.id,
-            nombre: dto.nombre,
-            especialidad: dto.space_especialidad,
-            junta_vigilancia: dto.junta_vigilancia,
-            disponible: dto.disponible,
-        };
-
-        self.repo.update(id, medico_actualizado)
+    pub async fn actualizar_medico(
+        &self,
+        id: i32,
+        data: UpdateMedico,
+    ) -> Result<Medico, AppError> {
+        if data.nombre.is_none() && data.id_especialidad.is_none() && data.numero_licencia.is_none() && data.telefono.is_none() {
+            return Err(AppError::BadRequest(
+                "Se debe enviar al menos un campo para actualizar".into(),
+            ));
+        }
+        self.repo.update(id, data).await
     }
 
-    pub fn eliminar_medico(&self, id: u32) -> bool {
-        self.repo.delete(id)
+    pub async fn eliminar_medico(&self, id: i32) -> Result<(), AppError> {
+        self.repo.delete(id).await
     }
 }
