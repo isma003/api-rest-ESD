@@ -1,0 +1,5 @@
+/target
+.env
+.sqlx
+*.pem
+SETUP_LIDER.md
